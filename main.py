@@ -23,7 +23,7 @@ for network in networks :
             if mn > (sum/2) :
                 mn = sum/2
                 ret = str(addr)
-                print(ret + " : " + str(sum/4))
+                print(ret + " : " + str(sum/2))
         else : 
             break
 print (ret)
