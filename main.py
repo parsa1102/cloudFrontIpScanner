@@ -1,29 +1,58 @@
 import ipaddress as ip
 from pythonping import ping as ping
+import pandas as pd
 
 networks = ["120.52.22.96/27", "205.251.249.0/24", "180.163.57.128/26", "204.246.168.0/22", "111.13.171.128/26", "18.160.0.0/15", "205.251.252.0/23", "54.192.0.0/16", "204.246.173.0/24", "54.230.200.0/21", "120.253.240.192/26", "116.129.226.128/26", "130.176.0.0/17", "108.156.0.0/14", "99.86.0.0/16", "13.32.0.0/15", "120.253.245.128/26", "13.224.0.0/14", "70.132.0.0/18", "15.158.0.0/16", "111.13.171.192/26", "13.249.0.0/16", "18.238.0.0/15", "18.244.0.0/15", "205.251.208.0/20", "3.165.0.0/16", "3.168.0.0/14", "65.9.128.0/18", "130.176.128.0/18", "58.254.138.0/25", "205.251.201.0/24", "205.251.206.0/23", "54.230.208.0/20", "3.160.0.0/14", "116.129.226.0/25", "52.222.128.0/17", "18.164.0.0/15", "111.13.185.32/27", "64.252.128.0/18", "205.251.254.0/24", "3.166.0.0/15", "54.230.224.0/19", "71.152.0.0/17", "216.137.32.0/19", "204.246.172.0/24", "205.251.202.0/23", "18.172.0.0/15", "120.52.39.128/27", "118.193.97.64/26", "3.164.64.0/18", "18.154.0.0/15", "54.240.128.0/18", "205.251.250.0/23", "180.163.57.0/25", "52.46.0.0/18", "52.82.128.0/19", "54.230.0.0/17", "54.230.128.0/18", "54.239.128.0/18", "130.176.224.0/20", "36.103.232.128/26", "52.84.0.0/15", "143.204.0.0/16", "144.220.0.0/16", "120.52.153.192/26", "119.147.182.0/25", "120.232.236.0/25", "111.13.185.64/27", "3.164.0.0/18", "54.182.0.0/16", "58.254.138.128/26", "120.253.245.192/27", "54.239.192.0/19", "18.68.0.0/16", "18.64.0.0/14", "120.52.12.64/26", "99.84.0.0/16", "205.251.204.0/23", "130.176.192.0/19", "52.124.128.0/17", "205.251.200.0/24", "204.246.164.0/22", "13.35.0.0/16", "204.246.174.0/23", "3.164.128.0/17", "3.172.0.0/18", "36.103.232.0/25", "119.147.182.128/26", "118.193.97.128/25", "120.232.236.128/26", "204.246.176.0/20", "65.8.0.0/16", "65.9.0.0/17", "108.138.0.0/15", "120.253.241.160/27", "64.252.64.0/18"]
 
+resultDict = dict({
+    ip.IPv4Address('127.0.0.1') : float(0.0)
+})
+
 mn = 500
+networkTollerance = 20
+testPerIP = 4
+failTollerance = 0
+
+outputPath = "results.csv"
+
 ret = ip.IPv4Address("127.0.0.1")
 
 for network in networks :
-    print(str(network))
+    print("testing network : ", str(network))
     for addr in ip.IPv4Network(network).hosts() :
-        result = ping(str(addr), count = 2)
-        flag = True
+        print("testing IP : ", addr)
+        skipNetwork = False
+        result = ping(str(addr), count = testPerIP)
+        failed = 0
         sum = 0
         for res in result :
             if res.error_message == None :
                 sum +=res.time_elapsed_ms
             else :
-                flag = False
-        if flag :
-            if sum/2 > mn + 10 : 
-                break
-            if mn > (sum/2) :
-                mn = sum/2
+                failed += 1
+        
+        if failed <= failTollerance :
+            if sum/testPerIP > mn + networkTollerance :
+                print("surpassed network tollerance on : ", addr) 
+                skipNetwork = True
+            elif mn > (sum/testPerIP) :
+                mn = sum/testPerIP
                 ret = str(addr)
-                print(ret + " : " + str(sum/2))
-        else : 
+                print(ret + " : " + str(sum/testPerIP))
+                resultDict[addr] = sum/testPerIP
+            else :
+                print("testing ip ", addr, " completed, yet a better result already exists")
+                
+        else :
+            print("surpassed fail Tollerance on : ", addr)
+            skipNetwork = True
+        
+        if skipNetwork:
             break
+
+
+df = pd.DataFrame.from_dict(resultDict, orient='index')
+df.to_csv(outputPath)
+
+
 print (ret)
